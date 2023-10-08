@@ -1,0 +1,113 @@
+---
+title: "InClassExercise2"
+author: "Fanglin Liu Irene"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r}
+library(dplyr)
+d <- vdem_1984_2022_external <- read.csv("~/Documents/GitHub/HKU_POLI3148_23Fall_Demo/_DataPublic_/vdem/1984_2022/vdem_1984_2022_external.csv")
+```
+
+## 1. **Coodbook lookup**
+
+### i.
+
+```{r}
+names(d)
+```
+
+According to the codebook, two indicators are concerned with education quality.
+
+Education 15+ (E) (e_peaveduc)
+
+Educational inequality, Gini (E) (e_peedgini)
+
+### ii. 
+
+```{r}
+d |> select(country_name) |> distinct()
+d |> select(year) |> distinct()
+d |> select(country_name, year) |> distinct()
+```
+
+### iii.
+
+**The sources for e_peaveduc:**
+
+Source(s): Clio Infra (clio-infra.eu), drawing on Mitchell (1998a, 1998b, 1998c), United States
+
+Census Bureau (2021), UNESCO, Földvári and van Leeuwen (2014), Leeuwen, van LeeuwenLi, Földvári (2011), Leeuwen, van Leeuwen-Li, Földvári (2012a), Leeuwen, van Leeuwen-Li,
+
+Földvári (2012b), Didenko, Foldvari, van Leeuwen (2012).
+
+**The sources for e_peedgini:**
+
+Source(s): Clio Infra (clio-infra.eu), drawing on Mitchell (1998a, 1998b, 1998c), United States
+
+Census Bureau (2021), UNESCO, Földvári and van Leeuwen (2010a), Leeuwen, van LeeuwenLi, Földvári (2011), Leeuwen, van Leeuwen-Li, Földvári (2012a), Leeuwen, van Leeuwen-Li,
+
+Földvári (2012b), Didenko, Foldvari, van Leeuwen (2012)
+
+Link for Clio Infra:
+
+URL: <https://www.clio-infra.eu/docs/Educational_Gini.docx>
+
+## 2. **Subset by columns**
+
+### i. 
+
+```{r}
+d_edu <- d |> select(country_name, year, e_peaveduc, e_peedgini)
+```
+
+### ii. 
+
+```{r}
+d_edu <- d_edu |> rename("country" = "country_name", "avgeduyears" = "e_peaveduc", "edu_inequality" = "e_peedgini")
+```
+
+## 3. **Subset by rows**
+
+### i. 
+
+```{r}
+d_edu |> slice_max(order_by = avgeduyears, n = 5)
+```
+
+### ii. 
+
+```{r}
+d_edu |> slice_max(order_by = edu_inequality, n = 5)
+```
+
+## 4. 
+
+### i. 
+
+```{r}
+d_edu <- d_edu |> mutate(edu_quality_missing = as.numeric(is.na(avgeduyears)))
+sum(d_edu$edu_quality_missing)
+d_edu_avl <- d_edu |> filter(edu_quality_missing == "0")
+d_edu_avl|> group_by(country, year)
+```
+
+Therefore there are 1174 country-years where the education quality data are missing.
+
+### ii.
+
+```{r}
+mean(d_edu_avl$avgeduyears)
+max(d_edu_avl$avgeduyears) - min(d_edu_avl$avgeduyears)
+```
+
+### iii.
+
+```{r}
+d_edu_avl <- d_edu_avl |> group_by(country) |> mutate(edumean = mean(avgeduyears)) |> ungroup() 
+d_edu_avl |> slice_max(order_by = edumean, n = 1)
+d_edu_avl |> slice_min(order_by = edumean, n = 1)
+```
+
+As the output indicates, Germany performed best with an average education years of 12.93987, while Burkina Faso performs worst with an average education years of 0.9819231
