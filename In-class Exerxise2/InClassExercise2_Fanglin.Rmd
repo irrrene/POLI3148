@@ -2,7 +2,10 @@
 title: "InClassExercise2"
 author: "Fanglin Liu Irene"
 date: "`r Sys.Date()`"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r}
@@ -90,7 +93,8 @@ d_edu |> slice_max(order_by = edu_inequality, n = 5)
 d_edu <- d_edu |> mutate(edu_quality_missing = as.numeric(is.na(avgeduyears)))
 sum(d_edu$edu_quality_missing)
 d_edu_avl <- d_edu |> filter(edu_quality_missing == "0")
-d_edu_avl|> group_by(country, year)
+d_edu_avl|> group_by(country) |> summarise()
+d_edu_avl|> group_by(year) |> summarise()
 ```
 
 Therefore there are 1174 country-years where the education quality data are missing.
@@ -105,9 +109,15 @@ max(d_edu_avl$avgeduyears) - min(d_edu_avl$avgeduyears)
 ### iii.
 
 ```{r}
+#eduyears
 d_edu_avl <- d_edu_avl |> group_by(country) |> mutate(edumean = mean(avgeduyears)) |> ungroup() 
 d_edu_avl |> slice_max(order_by = edumean, n = 1)
 d_edu_avl |> slice_min(order_by = edumean, n = 1)
+#eduinequality
+d_edu_avl <- d_edu_avl |> group_by(country) |> mutate(inequamean = mean(edu_inequality, na.rm = TRUE)) |> ungroup() 
+d_edu_avl |> slice_max(order_by = inequamean, n = 1)
+d_edu_avl |> slice_min(order_by = inequamean, n = 1)
 ```
 
-As the output indicates, Germany performed best with an average education years of 12.93987, while Burkina Faso performs worst with an average education years of 0.9819231
+For education years, Germany performed best with an average education years of 12.93987, while Burkina Faso performs worst with an average education years of 0.9819231
+For education inequality, Germany performed best while Austria perform worst
