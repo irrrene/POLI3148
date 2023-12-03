@@ -1,5 +1,5 @@
 ---
-title: "[Fanglin Liu, 3035770795]"
+title: "Fanglin Liu, 3035770795"
 subtitle: "Problem Set 1+2 (15% + 15%)"
 date: "Due: 2023-12-3 23:59 (HKT)"
 output: pdf_document
@@ -67,6 +67,7 @@ For Better organization, it is a good habit to load all required packages up fro
 library(tidyverse)
 library(ggplot2)
 library(stringr)
+library(sf)
 ```
 
 \clearpage
@@ -252,11 +253,8 @@ Feel free to try alternative approach(es) to make your visualization nicer and m
 
 ```{r}
 
-d_tally_state <- d_tally |> group_by(state) |> summarise(n_fraud = sum(fraud_bin == TRUE), prop_fraud= 100*n_fraud/n())
-print(d_tally_state)
-
-ggplot(d_tally_state, aes(x = reorder(state, n_fraud), y = n_fraud, fill = d_tally_state$prop_fraud)) +
-  geom_bar(stat = "identity") +
+ggplot(d_tally_state, aes(x = reorder(state, n_fraud), y = n_fraud, fill = prop_fraud)) +
+  geom_col() +
   coord_flip() +
   scale_fill_gradient(low = "cyan", high = "black") +
   ggtitle("Fraud by State") +
@@ -456,26 +454,19 @@ d$clouthier_prop <- d$clouthier / d$total_president
 Based on all the previous step, reproduce Figure 4 in Cantu (2019, pp. 720).
 
 ```{r, echo=TRUE}
-ggplot(d, aes(x = salinas_prop, fill = fraud_bin, linetype = fraud_bin)) +
-    geom_density(alpha = 0.6, color = "white") + 
-  scale_fill_manual(values = c("skyblue","orange")) + 
-  ggtitle("Salinas (PRI)") + 
-  theme(plot.title.position = "plot") +
-  xlab("Vote Share")
+d_gathered <- d %>%
+  gather(key = "candidates", value = "candidate_prob", salinas_prop, cardenas_prop, clouthier_prop)  %>%
+  mutate(candidate = case_when(
+    candidates == "salinas_prop" ~ "Salinas (PRI)",
+    candidates == "cardenas_prop" ~ "Cardenas (FDN)",
+    candidates == "clouthier_prop" ~ "Clouthier (PAN)",
+    TRUE ~ candidates 
+  ))
 
-ggplot(d, aes(x = cardenas_prop, fill = fraud_bin, linetype = fraud_bin)) +
+ggplot(d_gathered, aes(x = candidate_prob, fill = fraud_bin, linetype = fraud_bin, outline.type = "upper")) +
     geom_density(alpha = 0.6, color = "white") + 
   scale_fill_manual(values = c("skyblue","orange")) + 
-  ggtitle("Cardenas (FDN)") + 
-  theme(plot.title.position = "plot") +
-  xlab("Vote Share")
-
-ggplot(d, aes(x = clouthier_prop, fill = fraud_bin, linetype = fraud_bin)) +
-    geom_density(alpha = 0.6, color = "white") + 
-  scale_fill_manual(values = c("skyblue","orange")) + 
-  ggtitle("Clouthier (PAN)") + 
-  theme(plot.title.position = "plot") +
-  xlab("Vote Share")
+  facet_wrap(~ candidates, ncol = 1) 
   
 ```
 
@@ -518,7 +509,16 @@ As you might have noticed in the caption of Figure 5 in Cantu (2019, pp. 720), t
 -   `prop_fraud`: Proportions of fraudulent tallies (hint: using `fraud_bin`)
 
 ```{r, echo=TRUE}
-# YOUR CODE HERE
+
+sum_fraud_by_district <- d |>
+  group_by(state, district) |>
+  summarise(vote_president = sum(total_president),
+            vote_legislature = sum(total),
+            prop_fraud = mean(fraud_bin == "TRUE")) |>
+  mutate(vote_diff = vote_president - vote_legislature)
+
+print(sum_fraud_by_district)
+ 
 ```
 
 \clearpage
@@ -528,7 +528,12 @@ As you might have noticed in the caption of Figure 5 in Cantu (2019, pp. 720), t
 Based on all the previous step, reproduce Figure 5 in Cantu (2019, pp. 720).
 
 ```{r, echo=TRUE}
-# YOUR CODE HERE
+
+ggplot(sum_fraud_by_district, aes(x = vote_legislature, y = vote_president, size = prop_fraud)) + 
+  geom_point(alpha = 0.1) + 
+  labs(x = "Total Legislative Votes", y = "Total Presidential Votes", size = "Proportion of tallies
+identified with
+alterations")
 ```
 
 **Note 1:** Your performance in this task will be mainly evaluated based on your output's similarity with the original figure. Pay attention to the details.
@@ -544,7 +549,7 @@ Referring to your reproduced figures and the research articles, in what way is t
 **Note:** Feel free to make *multiple* alternative designs to earn bonus credits. However, please be selective. Only a design with major differences from the existing ones can be counted as an alternative design.
 
 ```{r, echo=TRUE}
-# YOUR CODE HERE
+# 
 ```
 
 \clearpage
@@ -559,7 +564,7 @@ As you may recall, map data can be stored and shared in **two** ways. The simple
 
 Below the instructor provide you with the code to load the maps stored under the two formats respectively. Please run them before starting to work on your task.
 
-```{r, echo=TRUE, results='hide', eval=FALSE}
+```{r, echo=TRUE, results='hide'}
 # IMPORTANT: Remove eval=FALSE above when you start this part!
 
 # Load map (simple)
