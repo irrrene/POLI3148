@@ -572,6 +572,10 @@ map_mex <- read_csv("data/map_mexico/map_mexico.csv")
 # Load map (sf): You need to install and load library "sf" in advance
 map_mex_sf <- st_read("data/map_mexico/shapefile/gadm36_MEX_1.shp")
 map_mex_sf <- st_simplify(map_mex_sf, dTolerance = 100)
+
+
+# Bonus Question: the st_simplify() function simplifies the map data to a certian degree, measured by dTolerance, by removing certices and reduce the level of details in the map_mex_sf. This operation could make the data file smaller and the final graph more concise. 
+
 ```
 
 **Bonus question**: Explain the operations on `map_mex_sf` in the instructor's code above.
@@ -591,7 +595,21 @@ Note:
 -   Hint: Check the states' names in the map data and the electoral fraud data. Recode them if necessary.
 
 ```{r, echo=TRUE}
-# YOUR CODE HERE
+
+d_map_mex = map_mex |>
+  left_join(sum_fraud_by_district, by = c("state_name" = "state"))
+
+d_map_mex |>
+  ggplot(aes(x = long, y = lat)) +
+  geom_map(
+    map = d_map_mex,
+    aes(map_id = state_name, fill = prop_fraud),
+    color = "white", size = 0.1
+  ) +
+  scale_fill_viridis_c(option = "B") 
+
+
+
 ```
 
 \clearpage
@@ -607,7 +625,20 @@ Note:
 -   Hint: Check the states' names in the map data and the electoral fraud data. Recode them if necessary.
 
 ```{r, echo=TRUE}
-# YOUR CODE HERE
+
+map_mex_sf$NAME_1 <- gsub("Yucatán", "Yucatan", map_mex_sf$NAME_1)
+map_mex_sf$NAME_1 <- gsub("San Luis Potosí", "San Luis Potosi", map_mex_sf$NAME_1)
+map_mex_sf$NAME_1 <- gsub("Querétaro", "Queretaro", map_mex_sf$NAME_1)
+map_mex_sf$NAME_1 <- gsub("Nuevo León", "Nuevo Leon", map_mex_sf$NAME_1)
+map_mex_sf$NAME_1 <- gsub("Michoacán", "Michoacan", map_mex_sf$NAME_1)
+map_mex_sf$NAME_1 <- gsub("México", "Edomex", map_mex_sf$NAME_1)
+
+d_map_sf <- merge(sum_fraud_by_district, map_mex_sf, by.x = "state", by.y = "NAME_1")
+
+ggplot() +
+  geom_sf(data = d_map_sf, aes(geometry = geometry, fill = prop_fraud)) +
+  scale_fill_gradient(low = "white", high = "black")
+
 ```
 
 \clearpage
