@@ -1,0 +1,183 @@
+---
+title: "Mapping_Lecture9"
+author: "Fanglin Liu Irene"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Required Package
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+theme_set(theme_map())
+
+library(maps)
+
+library(sf)
+sf_use_s2(FALSE)
+
+# Display Chinese text with ggplot
+library(showtext)
+showtext_auto()
+```
+
+# load data
+```{r}
+d <- read.csv("~/Documents/Documents - IreneLIU’s MacBook Air/23-24 Sem1/POLI3148_Data/Mapping/GEDEvent_v22_1.csv")
+```
+
+# plot events -> bubble map
+```{r}
+# data pre-processing
+d_event_2021 <- d |> filter(year == 2021)
+
+#load world map
+world = map_data("world")
+names(world)
+summary(world)
+
+## mapdata has internal coordinates data
+world_china = world |> 
+  filter(region == "China")
+
+world_china |>
+  ggplot() +
+  geom_point(aes(x = long, y = lat))
+
+## d_event_2021 has coordinates data as well 
+
+# plots only, no maps
+ggplot() + 
+  geom_point(data = d_event_2021, aes(x = longitude, y = latitude))
+
+# Stack the points onto the map
+world |>
+  ggplot(aes(x = long, y = lat)) +
+  geom_map(
+    map = world,
+    aes(map_id = region),
+    color = "white", fill = "gray", linewidth = 0.1
+  ) + 
+    geom_point(data = d_event_2021, aes(x = longitude, y = latitude), alpha = 0.3)  # alpha means transparency of the spot
+
+## Death Data prepare
+d_event_2021 = d_event_2021 |>
+  mutate(Deaths = deaths_a + deaths_b + 
+           deaths_civilians + deaths_unknown)
+
+# mapping, with size, alpha(transparency), and color scheme control
+world |>
+  ggplot(aes(x = long, y = lat)) +
+  geom_map(
+    map = world,
+    aes(map_id = region),
+    color = "white", fill = "gray", linewidth = 0.1
+  ) +
+  geom_point(
+    data = d_event_2021, 
+    aes(x = longitude, y = latitude, 
+        size = log(Deaths+1), color = log(Deaths+1)),
+    alpha = 0.1
+    ) +
+  scale_color_viridis_c(direction = -1, option = "A") +
+  coord_map() +
+  theme(legend.position = "bottom")
+```
+
+
+# choropleth map_lec09_2_areal
+```{r}
+# data preparation
+d_country_2021 = d |>
+  filter(year == 2021) |>
+  group_by(country, country_id, region) |>
+  summarise(
+    n_conflict = n()
+  )
+
+d_country_2021 = d_country_2021 |> arrange(-n_conflict)
+
+## Load the World Map
+world = map_data("world")
+
+## merge data
+world_m = world |>
+  left_join(d_country_2021, by = c("region" = "country")) #data include coordinats
+
+## mapping
+world_m |>
+  ggplot(aes(x = long, y = lat)) +
+  geom_map(
+    map = world,
+    aes(map_id = region, fill = n_conflict),
+    color = "white", size = 0.1
+  ) +
+  scale_fill_viridis_c(option = "B") +
+  coord_map()
+
+```
+
+
+
+#mapchina
+```{r}
+library(mapchina)
+chinamap = china
+
+ggplot(data = chinamap) +
+  geom_sf(aes(fill = Name_Province)) +
+  theme(legend.position = "none")
+
+# province-level map
+chinamap_province = chinamap |>
+  group_by(Code_Province, Name_Province) |>
+  summarise(
+    geometry = st_union(geometry)
+  )  ##The `st_union()` function from the `sf` package is used to combine the individual geometries into a single geometry representing the entire province. The result is a new dataset with the summarized geometries and the `Code_Province` and `Name_Province` columns.
+
+chinamap_province |>
+  ggplot() + geom_sf()
+
+#prefecture-level map
+chinamap_prefecture = chinamap |>
+  mutate(
+    Code_Prefecture = Code_Perfecture,
+    Name_Prefecture_t = 
+      ifelse(is.na(Name_Perfecture), Name_Province, Name_Perfecture)
+  ) |>
+  group_by(Code_Perfecture, Name_Prefecture_t) |>
+  summarise(
+    geometry = st_union(geometry)
+    ) 
+
+chinamap_prefecture |>
+  ggplot() + geom_sf()
+
+```
+
+
+# choropleth map, GDP, 2010, by province, China
+```{r}
+# environment and data
+library(readxl)
+China_province_data <- read_excel("~/Documents/Documents - IreneLIU’s MacBook Air/23-24 Sem1/POLI3148_Data/Mapping/China_province_data.xlsx")
+GDP_2019_province <- China_province_data |> filter(年份 == 2010)
+
+# load china map 
+library(mapchina)
+map_china <- mapchina::china
+
+# merge dataset by province
+chinamap_province$Name_Province <- gsub("省|市|自治区", "", chinamap_province$Name_Province)
+choro_GDP_2019 <- merge(GDP_2019_province, chinamap_province, by.x = "地区", by.y = "Name_Province")
+
+# mapping
+  ggplot() + geom_sf(data = chinamap_province) +
+  geom_sf(data = choro_GDP_2019, 
+          aes(geometry = geometry,
+              fill = GDP)) + 
+      scale_fill_gradient(low = "lightblue", high = "black") 
+### hoorayyyyyyy!
+```
+
