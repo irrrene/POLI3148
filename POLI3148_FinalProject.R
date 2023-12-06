@@ -156,30 +156,91 @@ word_freq <- d_ext_remove_sw |>
 
 
 # Plot ======
-## Donation Distribution by topic area (log) ------
+nvxing_topicplot <- nvxing |> filter(topic != "others")
+nvxing_topicplot <- nvxing_topicplot |> filter(DonationLevel != "others")
 
+## Donation Box-Dot by topic area (log) ------
+
+ggplot(nvxing_topicplot, aes(x = topic, y = AmountLog)) +
+  geom_boxplot(outlier.shape = NA, color = "red2") +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 0.2) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ## Sum of amount by topic area -------
-ggplot(sum_raised, aes(x = topic_area, y = sum_raised, fill = topic_area)) +
+ggplot(nvxing_topicplot, aes(x = topic, y = RaisedAmount, fill = topic)) +
   geom_col() +
-  geom_text(aes(label = sum_raised), vjust = -0.5, color = "black") +
+  stat_summary(geom = "text", fun = sum, aes(label = round(..y..)), vjust = -0.5) +
   labs(title = "Sum of Amount by Topic Areas / yuan",
        x = "Topic areas",
        y = "Sum of amount raised") +
+  scale_fill_tableau() + 
+  theme_clean() +
   theme(legend.position = "right",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-## Topic Area Distribution for Raised Amount by Group -----
-
+## Topic Area Distribution for Raised Amount by DonationBin -----
+ggplot(nvxing_topicplot, aes(x = DonationLevel, y = RaisedAmount, fill = topic)) +
+  geom_col(position = "fill") +
+  labs(title = "Topic Area Distribution for Raised Amount",
+       x = "Amount Level Bin",
+       y = "Donation Raised") +
+  scale_fill_tableau() + 
+  theme_clean() +
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1))
 ## Proportion of Donation Scale by Administration Level -----
+
+ggplot(nvxing_topicplot, aes(x = adminlevel, y = RaisedAmount, fill = topic)) +
+  geom_col(position = "stack") +
+  labs(title = "Topic Distribution by AdminLevel",
+       x = "Administration Leel",
+       y = "Donation Raised") +
+  scale_fill_tableau() + 
+  theme_clean() +
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
 ## Donation Scale by NGO Types (bar plot) -----
 
-## Topic Area Raised Amount by Admin Level -----
+table(nvxing$type)  
+pie(table(nvxing$type))
 
-## Topic Area Raised Amount by NGO Types -----
+ggplot(nvxing_topicplot, aes(x = type, y = RaisedAmount, fill = topic)) +
+  geom_col(position = "stack") +
+  labs(title = "Topic Distribution by AdminLevel",
+       x = "Administration Leel",
+       y = "Donation Raised") +
+  scale_fill_tableau() + 
+  theme_clean() +
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+## Raised Amount by NGO -----
+
+ggplot(nvxing_topicplot, aes(x = type, y = DonationLevel, fill = DonationLevel)) +
+  geom_col(position = "stack") +
+  labs(title = "Project Level by NGO Type",
+       x = "NGO Type",
+       y = "Level of donation") +
+  scale_fill_tableau() + 
+  theme_void() +
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
 ## Topic Area Raised Amount by Province -----
+
+map_province <- map_province |> filter(topic != "others")
+map_province <- map_province |> filter(topic != "health_individual")
+
+ggplot(map_province, aes(x = province, y = topic, fill = topic)) +
+  geom_col(position = "stack") +
+  labs(title = "Project Level by NGO Type",
+       x = "NGO Type",
+       y = "Level of donation") +
+  scale_fill_tableau() + 
+  theme_void() +
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
 # Mapping ======
 
