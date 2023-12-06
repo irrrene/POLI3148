@@ -21,7 +21,7 @@ showtext_auto()
 baidu_stopwords <- read.table("baidu_stopwords.txt", quote="\"", comment.char="")
 baidu_stopwords4topic <- read.table("baidu_stopwords_4topic.txt", quote="\"", comment.char="")
 topicdictionary <- read_csv("topicdictionary.csv")
-
+admindict <- read_csv("admin_china.csv")
 nvxing0 <- read_csv("ScrapedData/POLI3148_nvxing_wtext.csv", 
                                              col_types = cols(TarAmount = col_number(), 
                                              RaisedAmount = col_number()))
@@ -61,6 +61,7 @@ nvxing$DonationLevel <- cut(nvxing$RaisedAmount, breaks = c(0,45000,200000,79765
 
 ## Topic --------
 # topic dictionary
+individualhealth_dict <- paste(na.omit(topicdictionary$health_individual), collapse = "|")
 health_dict <- paste(na.omit(topicdictionary$health), collapse = "|")
 career_dict <- paste(na.omit(topicdictionary$career), collapse = "|")
 rights_dict <- paste(na.omit(topicdictionary$rights), collapse = "|")
@@ -71,24 +72,50 @@ disable_dict <- paste(na.omit(topicdictionary$disable), collapse = "|")
 repro_dict <- paste(na.omit(topicdictionary$maternal_reproductive), collapse = "|")
 
 # topic identification
-nvxing$topic <- ifelse(grepl(paste(paste(rights_dict), nvxing$titlebio), "rights",
-                       ifelse(grepl(paste(career_dict), nvxing$titlebio), "career",
-                              ifelse(grepl(paste(disable_dict), nvxing$titlebio), "disable",
-                                     ifelse(grepl(paste(edu_dict), nvxing$titlebio), "education",
-                                            ifelse(grepl(paste(mental_dict), nvxing$titlebio), "mental",
-                                                   ifelse(grepl(health_dict), nvxing$titlebio), "health",
-                              "others"))))))
-
+nvxing$topic <- ifelse(grepl(paste(rights_dict), nvxing$titlebio), "rights", 
+                       ifelse(grepl(paste(repro_dict), nvxing$titlebio), "maternal",
+                              ifelse(grepl(paste(career_dict), nvxing$titlebio), "career",
+                                     ifelse(grepl(paste(disable_dict), nvxing$titlebio), "disable",
+                                            ifelse(grepl(paste(edu_dict), nvxing$titlebio), "education",
+                                                   ifelse(grepl(paste(mental_dict), nvxing$titlebio), "mental",
+                                                          ifelse(grepl(paste(individualhealth_dict), nvxing$titlebio), "health_individual",
+                                                                 ifelse(grepl(paste(health_dict), nvxing$titlebio), "health",
+                       "others"))))))))
 
 ## Administration Level --------
+province_dict <- paste(na.omit(admindict$provincial), collapse = "|")
+city_dict <- paste(na.omit(admindict$city), collapse = "|")
 
+nvxing$adminlevel <- ifelse(grepl("国|中华", nvxing$Organizer), "national",
+                            ifelse(grepl(paste(province_dict, collapse = "|"), nvxing$Organizer), "provincial",
+                                   ifelse(grepl(paste(city_dict, collapse = "|"), nvxing$Organizer), "city",
+                                          ifelse(grepl("县|区", nvxing$Organizer), "county",
+                                                 "others")))) 
+
+                       
 ## Geographical Area --------
+map_province <- nvxing |> filter(adminlevel == "provincial") |> 
+  mutate(province = substr(Organizer, 1, 2))
+
+map_province$province <- gsub("内蒙", "内蒙古", map_province$province)
+map_province <- subset(map_province, !(province == "省直" | province == "中志"))
+
+map_city <- nvxing |> filter(adminlevel == "city") |> 
+  mutate(city = substr(Organizer, 1, 2))
+
+map_city$city <- gsub("马鞍", "马鞍山", map_city$city)
+map_city$city <- gsub("驻马", "驻马店", map_city$city)
+map_city$city <- gsub("连云", "连云港", map_city$city)
+map_city$city <- gsub("石家", "石家庄", map_city$city)
+
+map_city <- subset(map_city, !(city == "LG" | city == "中志" | city == "诸城"))
 
 ## NGO Types --------
-
+nvxing$type <- ifelse(grepl("妇女发展|妇女儿童发展|妇女儿童基金会|中华|中国|慈善总会|妇联|妇女联合会", nvxing$Organizer), "GONGO",
+                                                                          "NGO")
 # Text Processing =====
 ## Tokenization 
-text <- POLI3148_Playing1029$Body
+text <- nvxing$ProjectDescription
 length(text)
 
 tokenizer <- jiebaR::worker()
@@ -99,21 +126,21 @@ for (w in customized_words){
   jiebaR::new_user_word(tokenizer, w)
 }
 
-body_tokenized <- lapply(text, function(x) jiebaR::segment(x, tokenizer))
-title_tokenized <- lapply(POLI3148_Playing1029$Title, function(x) jiebaR::segment(x, tokenizer))
+text_tokenized <- lapply(text, function(x) jiebaR::segment(x, tokenizer))
+title_tokenized <- lapply(nvxing$titlebio, function(x) jiebaR::segment(x, tokenizer))
 
 # text_tokenized[1:10]
 
 # Make a "term-documen matrix"
 
-d_ext <- POLI3148_Playing1029 |>
-  mutate(Title_tokenized = title_tokenized, .after = Title) |>
-  mutate(Body_tokenize = body_tokenized, .after = Body)
+d_ext <- nvxing |>
+  mutate(Title_tokenized = title_tokenized, .after = titlebio) |>
+  mutate(Text_tokenized = text_tokenized, .after = ProjectDescription)
 
 d_ext_unnested <- d_ext |>
-  select(`web-scraper-order`, Title, Body_tokenize) |>
-  unnest(Body_tokenize) |>
-  rename("word" = "Body_tokenize")
+  select(`web-scraper-order`, Title, Title_tokenized, Text_tokenized, ) |>
+  unnest(Text_tokenized) |>
+  rename("word" = "Text_tokenized")
 
 # Remove stop word using anti_join
 d_ext_remove_sw <- d_ext_unnested |>
