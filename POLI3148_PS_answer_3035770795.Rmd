@@ -229,7 +229,7 @@ barplot(table(d_tally$fraud_bin),
 
 pie(table(d_tally$fraud_bin),
         main = "Proportion of Fraud",
-    labels = paste0(round(fraud_proportions * 100, 1), "%"))
+    labels = paste0(round(d_tally$fraud_proba * 100, 1), "%"))
 legend("topright", 
        c("Not Fraud", "Fraud"), 
        fill = c("white", "lightblue"))
@@ -604,7 +604,52 @@ Referring to your reproduced figures and the research articles, in what way is t
 **Note:** Feel free to make *multiple* alternative designs to earn bonus credits. However, please be selective. Only a design with major differences from the existing ones can be counted as an alternative design.
 
 ```{r, echo=TRUE}
-# 
+# The author observe and argues that for dots offset the y = x angle bisector
+# line, namely a largre difference between legislative and presidential vote, 
+# suspiciously high proportion of altered tallies was observed. 
+
+# My plot
+
+ggplot(sum_fraud_by_district, aes(x = vote_legislature, y = vote_diff, 
+                                    color = prop_fraud, na.rm = TRUE)) +
+  geom_point(size = 1.5) + 
+  scale_color_gradient(low = "lightblue", high = "darkred") + 
+  labs(x = "Total Legislative Votes", y = "Differnce of Votes", 
+  size = "Proportion of tallies
+identified with
+alterations") 
+  
+# In this graph, I change the y-axis to be difference of votes. So that the
+# outlier, as emphasized by the author, is more apparent. 
+# Plus, I change the proportion of fraud to be indicated by the color instead
+# of the size of the point. Compared to the original graph, 
+#we could easier conclude from the graph that the proportion of fraud is mixing
+# and shows no apparent pattern when the difference of vote is not exceptionally
+# high.
+
+# Plot 2
+  
+sum_fraud_by_district$vote_diff_abs <- abs(sum_fraud_by_district$vote_diff)
+print(quantile(sum_fraud_by_district$vote_diff_abs, probs = seq(0, 1, 0.1), na.rm = TRUE))
+
+#Divide them into three categories by vote_diff_abs, namely low, medium, high
+  
+sum_fraud_by_district$vote_diff_box <- cut(sum_fraud_by_district$vote_diff_abs, breaks = c(0,5000,9000,61767), labels = c("Low", "Medium", "High"))
+
+sum_fraud_by_district_plot <- sum_fraud_by_district[!is.na(sum_fraud_by_district$vote_diff_box), ]
+
+# My Plot 2
+ggplot(sum_fraud_by_district_plot, aes(prop_fraud, 
+                                  color = vote_diff_box,
+                                  fill = vote_diff_box)) +
+  geom_density(alpha = 0.2) +
+  labs(x = "Proportion of Fraud", y = "Density", 
+  size = "Total Presidential Votes") 
+
+#In the second plot, I categorize them based on their vote of difference after
+# checking the 10% quantile. By ploting the density of proportion of fraud,
+# we could conclude that lower difference in vote suggest the proportion of 
+# fraud is more likely to be low. 
 ```
 
 \clearpage
@@ -651,19 +696,33 @@ Note:
 
 ```{r, echo=TRUE}
 
+ggplot() +
+  geom_polygon(data = map_mex, aes(x = long, y = lat, group = group))  +
+  theme_void() + 
+  labs(title = "Rates of Tallies Classified as Altered by State",
+       fill = "Proportion
+of altered
+tallies") 
+
+table(d_tally_state$state)
+table(map_mex$state_name)
 map_mex$state_name <- gsub("Yucatán", "Yucatan", map_mex$state_name)
 map_mex$state_name <- gsub("San Luis Potosí", "San Luis Potosi", map_mex$state_name)
 map_mex$state_name <- gsub("Querétaro", "Queretaro", map_mex$state_name)
 map_mex$state_name <- gsub("Nuevo León", "Nuevo Leon", map_mex$state_name)
 map_mex$state_name <- gsub("Michoacán", "Michoacan", map_mex$state_name)
-map_mex$state_name <- gsub("México", "Edomex", map_mex$state_name)
+map_mex$state_name <-gsub("México", "Edomex", map_mex$state_name)
+map_mex$state_name <-gsub("México", "Edomex", map_mex$state_name)
+table(map_mex$state_name)
 
-d_map_mex <- merge(map_mex, d_tally_state, by.x = "state_name", by.y = "state", all.x = TRUE)
+map_mex$state <- map_mex$state_name
+
+d_map_mex <- left_join(map_mex, d_tally_state, by = "state")
 
 ggplot() +
-  geom_polygon(data = d_map_mex, aes(x = long, y = lat, group = group, fill = prop_fraud))  +
+  geom_polygon(data = d_map_mex, aes(x = long, y = lat, group = group, 
+                                     fill = prop_fraud))  +
   theme_void() + 
-  theme(axis.title = element_blank()) +
    scale_fill_gradient(low = "white", high = "black") + 
   labs(title = "Rates of Tallies Classified as Altered by State",
        fill = "Proportion
@@ -698,8 +757,8 @@ d_map_sf <- merge(d_tally_state, map_mex_sf, by.x = "state", by.y = "NAME_1")
 
 ggplot() +
   geom_sf(data = d_map_sf, aes(geometry = geometry, fill = prop_fraud)) +
-  theme(axis.title = element_blank()) +
-  scale_fill_gradient(low = "white", high = "black") + 
+  scale_fill_gradient(low = "white", high = "black") +
+  theme_void() +
   labs(title = "Rates of Tallies Classified as Altered by State",
        fill = "Proportion
 of altered
@@ -716,18 +775,35 @@ Referring to your reproduced figures and the research articles, in what way is t
 **Note:** Feel free to make *multiple* alternative designs to earn bonus credits. However, please be selective. Only a design with major differences from the existing ones can be counted as an alternative design.
 
 ```{r, echo=TRUE}
-# Aligned with the author's argument, most of the tallies with alterations, illustrated by darker shade of black, locates in the souther part of Mexico.  
+# Aligned with the author's argument, most of the tallies with alterations, illustrated by darker shade of black, locates in the southern part of Mexico.  
 
 #data preparation
 sum_fraud_by_state <- sum_fraud_by_district %>% 
   group_by(state) %>% 
   summarise(vote_president = sum(vote_president))
 
-d_map_extend <- merge(d_map_sf, sum_fraud_by_state, by = "state")
+state_coordinate <- map_mex |> group_by(state_name) |> summarise(lat_mean = mean(lat), long_mean = mean(long))
+
+sum_fraud_by_state <- merge(sum_fraud_by_state, state_coordinate, by.x = "state", by.y = "state_name")
+
+d_map_extend <- left_join(d_map_sf, sum_fraud_by_state, by = "state")
 
 
+ggplot() +
+  geom_sf(data = d_map_extend, aes(geometry = geometry, fill = vote_president)) +
+  geom_point(data = d_map_extend, aes(x = long_mean, y = lat_mean, color = prop_fraud)) +
+    coord_sf() +
+  scale_fill_gradient(low = "white", high = "orange") +
+  theme_void() +
+  labs(title = "Rates of Tallies Classified as Altered by State",
+       fill = "Number of presidential vote",
+       color = "Proportion of altered tallies")
   
-  
-
-
+# This plot combine the information of altered tallies and presidential vote. 
+# The number of votes is indicated by the fill color and the proportion of 
+# altered tallies is indicated by the color of point at the middle. 
+# It can ne seen from the map that while the northen state has relatively low
+# presidential votes, accompanied by the low proportion of altered tallies. 
+# For the southern part, however, the proportion could be high regardless
+# the number of presidential vote. 
 ```
