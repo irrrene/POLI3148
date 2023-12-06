@@ -94,21 +94,21 @@ nvxing$adminlevel <- ifelse(grepl("国|中华", nvxing$Organizer), "national",
 
                        
 ## Geographical Area --------
-map_province <- nvxing |> filter(adminlevel == "provincial") |> 
+nvxingmap_province <- nvxing |> filter(adminlevel == "provincial") |> 
   mutate(province = substr(Organizer, 1, 2))
 
-map_province$province <- gsub("内蒙", "内蒙古", map_province$province)
-map_province <- subset(map_province, !(province == "省直" | province == "中志"))
+nvxingmap_province$province <- gsub("内蒙", "内蒙古", nvxingmap_province$province)
+nvxingmap_province <- subset(nvxingmap_province, !(province == "省直" | province == "中志"))
 
-map_city <- nvxing |> filter(adminlevel == "city") |> 
+nvxingmap_city <- nvxing |> filter(adminlevel == "city") |> 
   mutate(city = substr(Organizer, 1, 2))
 
-map_city$city <- gsub("马鞍", "马鞍山", map_city$city)
-map_city$city <- gsub("驻马", "驻马店", map_city$city)
-map_city$city <- gsub("连云", "连云港", map_city$city)
-map_city$city <- gsub("石家", "石家庄", map_city$city)
+nvxingmap_city$city <- gsub("马鞍", "马鞍山", nvxingmap_city$city)
+nvxingmap_city$city <- gsub("驻马", "驻马店", nvxingmap_city$city)
+nvxingmap_city$city <- gsub("连云", "连云港", nvxingmap_city$city)
+nvxingmap_city$city <- gsub("石家", "石家庄", nvxingmap_city$city)
 
-map_city <- subset(map_city, !(city == "LG" | city == "中志" | city == "诸城"))
+nvxingmap_city <- subset(nvxingmap_city, !(city == "LG" | city == "中志" | city == "诸城"))
 
 ## NGO Types --------
 nvxing$type <- ifelse(grepl("妇女发展|妇女儿童发展|妇女儿童基金会|中华|中国|慈善总会|妇联|妇女联合会", nvxing$Organizer), "GONGO",
@@ -229,10 +229,10 @@ ggplot(nvxing_topicplot, aes(x = type, y = DonationLevel, fill = DonationLevel))
 
 ## Topic Area Raised Amount by Province -----
 
-map_province <- map_province |> filter(topic != "others")
-map_province <- map_province |> filter(topic != "health_individual")
+nvxingmap_province <- nvxingmap_province |> filter(topic != "others")
+nvxingmap_province <- nvxingmap_province |> filter(topic != "health_individual")
 
-ggplot(map_province, aes(x = province, y = topic, fill = topic)) +
+ggplot(nvxingmap_province, aes(x = province, y = topic, fill = topic)) +
   geom_col(position = "stack") +
   labs(title = "Project Level by NGO Type",
        x = "NGO Type",
@@ -248,6 +248,15 @@ ggplot(map_province, aes(x = province, y = topic, fill = topic)) +
 # environment and data
 library(readxl)
 China_province_data <- read_excel("China_province_data.xlsx")
+library(mapchina)
+chinamap = china
+
+# province-level map
+chinamap_province = chinamap |>
+  group_by(Code_Province, Name_Province) |>
+  summarise(
+    geometry = st_union(geometry))
+
 GDP_2019_province <- China_province_data |> filter(年份 == 2019)
 
 # load china map 
@@ -263,7 +272,36 @@ ggplot() + geom_sf(data = chinamap_province) +
   geom_sf(data = choro_GDP_2019, 
           aes(geometry = geometry,
               fill = GDP)) + 
-  scale_fill_gradient(low = "lightblue", high = "black") 
+  scale_fill_gradient(low = "lightblue", high = "black") +
+  labs(title = "GDP Choropleth Map by Province")
+
 ## Donation by province --------
 
+nvxingmap_province <- merge(nvxingmap_province, chinamap_province, 
+                        by.x = "province", by.y = "Name_Province")
+ggplot() + geom_sf(data = chinamap_province) +
+  geom_sf(data = nvxingmap_province, 
+          aes(geometry = geometry,
+              fill = AmountLog)) + 
+  scale_fill_gradient(low = "lightblue", high = "black") +
+  labs(title = "Donation(log) by province")
 ## Donation by city --------
+
+# city-level map
+
+chinamap_perfecture = chinamap |>
+  group_by(Code_Perfecture, Name_Perfecture) |>
+  summarise(
+    geometry = st_union(geometry))
+
+chinamap_perfecture$Name_Perfecture <- gsub("市|自治州", "", chinamap_perfecture$Name_Perfecture)
+
+nvxingmap_city <- merge(nvxingmap_city, chinamap_perfecture, 
+                            by.x = "city", by.y = "Name_Perfecture")
+
+ggplot() + geom_sf(data = chinamap_perfecture) +
+  geom_sf(data = nvxingmap_city, 
+          aes(geometry = geometry,
+              fill = AmountLog)) + 
+  scale_fill_gradient(low = "cyan", high = "black") +
+  labs(title = "Donation(log) by province")
