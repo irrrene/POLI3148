@@ -1,0 +1,14 @@
+---
+title: "POLI3148_w2"
+author: "Fanglin Liu Irene"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+testing testing testing
+
+This is a code chunk
+```{r}
+print(1100+2200)
+```
+
